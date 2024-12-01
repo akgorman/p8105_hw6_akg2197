@@ -1,0 +1,36 @@
+---
+title: "p8105_hw6_akg2197"
+author: "Annie Gorman"
+date: "2024-12-01"
+output: github_document
+---
+
+## Loading packages 
+
+```{r}
+library(tidyverse)
+library(p8105.datasets)
+library(modelr)
+```
+
+# Problem 2
+
+### Loading data
+
+```{r}
+homicide_df <- read_csv("homicide-data.csv") |>
+  mutate(city_state = map2(city, state, ~ paste(.x, .y, sep = ","))) |>  # 
+  filter(!(city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL"))) |>  
+  select(-city) |>
+  mutate(
+    race = case_when(
+      victim_race == "White" ~ "White",
+      victim_race == "Black" ~ "Black",
+      TRUE ~ NA_character_ 
+    )
+  ) |> 
+  filter(!is.na(race)) |>  
+  mutate(
+    victim_age = as.numeric(victim_age)  
+  )
+```
