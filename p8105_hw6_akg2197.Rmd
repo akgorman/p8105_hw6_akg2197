@@ -97,3 +97,23 @@ allcity_results |>
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(x = "City/State", y = "Adjusted OR", title = "Adjusted Odds Ratio for Male vs Female Victims")
 ```
+
+# Problem 3 
+
+### Loading data 
+
+Here, we'll load the data and convert baby's sex, presence of malformations, mother's race, and father's race from numeric to factor variables:
+
+```{r}
+birthweight_df <- read_csv("birthweight.csv") |>
+  janitor::clean_names() |>
+  mutate(across(c(babysex, malform, mrace, frace), forcats::as_factor))
+```
+
+Let's also check for any missing values in the data: 
+
+```{r}
+missing_values = 
+  birthweight_df |>
+  summarize_all(~sum(is.na(.)))
+```
