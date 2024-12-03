@@ -7,10 +7,24 @@ output: github_document
 
 ## Loading packages 
 
-```{r}
-library(tidyverse)
+```{r, message=FALSE, echo=FALSE}
 library(p8105.datasets)
+library(tidyverse)
+library(ggridges)
+library(patchwork)
 library(modelr)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(1)
 ```
 
 # Problem 2
@@ -98,6 +112,8 @@ allcity_results |>
   labs(x = "City/State", y = "Adjusted OR", title = "Adjusted Odds Ratio for Male vs Female Victims")
 ```
 
+From this plot, we can see that New York, NY has the lowest adjusted OR comparing male to female homicide solved cases, and that Albuquerque, NM has the highest OR. The majority of the adjusted odds ratios are less than 1, indicating that for male victims, odds of having a solved homicide case are lower than that of female victims. 
+
 # Problem 3 
 
 ### Loading data 
@@ -117,3 +133,63 @@ missing_values =
   birthweight_df |>
   summarize_all(~sum(is.na(.)))
 ```
+
+### Creating the hypothetical model:
+
+```{r}
+proposed_model <- lm(bwt ~ babysex + bhead + blength + gaweeks + malform + mheight + pnumlbw + smoken, data = birthweight_df)
+
+birthweight_df |>
+  add_predictions(proposed_model) |>
+  add_residuals(proposed_model) |>
+  ggplot(aes(x = pred, y = resid)) +  
+  geom_point(alpha = 0.2) +  
+  geom_smooth(method = "lm", color = "blue") +  
+  labs(
+    x = "Fitted Values",
+    y = "Residuals", 
+    title = "Fitted Values vs. Residuals of Hypothesized Regression Model"
+  )
+```
+
+I created this model by selecting predictors I thought would be most strongly associated with birthweight in grams based on what I have learned in maternal and child health courses, and predictors that seemed most associated with physical health/size of the baby. So, I picked sex of the baby, head circumfrence, gestational age, presence of malformations, mother's height, previous number of low birth weight babies, and average number of cigarettes smoked per day during pregnancy. 
+
+### Comparing main and interaction models to my original proposed model 
+
+```{r}
+cv_df <- crossv_mc(birthweight_df, 100) |>
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
+  )
+
+cvresidual_df <- cv_df |>
+  mutate(
+    proposed_model = map(train, \(x) lm(bwt ~ babysex + bhead + blength + gaweeks + malform + mheight + pnumlbw + smoken, data = x)), 
+    main_model = map(train, \(x) lm(bwt ~ blength + gaweeks, data = x)),   
+    interaction_model = map(train, \(x) lm(bwt ~ bhead + blength + babysex + bhead * blength * babysex, data = x)) 
+  ) |>
+  mutate(
+    rmse_proposed = map2_dbl(proposed_model, test, rmse), 
+    rmse_main = map2_dbl(main_model, test, rmse),
+    rmse_interaction = map2_dbl(interaction_model, test, rmse)
+  )
+```
+
+### Creating a plot comparing our models 
+
+```{r}
+cvresidual_df |>
+  select(starts_with("rmse")) |>
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse") |>
+  ggplot(aes(x = model, y = rmse, fill = model)) + 
+  geom_violin() + 
+  labs(x = "Model", 
+       y = "RMSE",
+       title = "RMSE by Regression Model")
+```
+
+Based on this violin plot, I can see that the interaction model and the proposed (hypothesized) model have the lowest RMSE, indicating the best and most accurate fit for predictions. However, the hypothesized model performed slightly better than the interaction model, with lower RMSE. The interaction model was a close second for the most accurate to use for birthweight predictions. 
